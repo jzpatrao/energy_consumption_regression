@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# C'est le final de trois notebooks.<br> 
+# Ce notebook se concentre sur la construction et l'interprétation de modèles de régression pour la ciblé TotalGHGEmissions.<br> 
+# Il examine également l'efficacité de la variable ENERGYStarScore comme prédicteur des émissions totales.
+
 # <h1>Table of Contents<span class="tocSkip"></span></h1>
-# <div class="toc"><ul class="toc-item"><li><span><a href="#Preprocessing" data-toc-modified-id="Preprocessing-1"><span class="toc-item-num">1&nbsp;&nbsp;</span>Preprocessing</a></span></li><li><span><a href="#Models" data-toc-modified-id="Models-2"><span class="toc-item-num">2&nbsp;&nbsp;</span>Models</a></span></li><li><span><a href="#Model-interpretation" data-toc-modified-id="Model-interpretation-3"><span class="toc-item-num">3&nbsp;&nbsp;</span>Model interpretation</a></span></li></ul></div>
+# <div class="toc"><ul class="toc-item"><li><span><a href="#Preprocessing" data-toc-modified-id="Preprocessing-1"><span class="toc-item-num">1&nbsp;&nbsp;</span>Preprocessing</a></span></li><li><span><a href="#Models" data-toc-modified-id="Models-2"><span class="toc-item-num">2&nbsp;&nbsp;</span>Models</a></span></li><li><span><a href="#Model-interpretation" data-toc-modified-id="Model-interpretation-3"><span class="toc-item-num">3&nbsp;&nbsp;</span>Model interpretation</a></span></li><li><span><a href="#ENERGYStarScore" data-toc-modified-id="ENERGYStarScore-4"><span class="toc-item-num">4&nbsp;&nbsp;</span>ENERGYStarScore</a></span></li></ul></div>
 
 # In[1]:
 
@@ -17,15 +21,14 @@ import seaborn as sns
 # In[2]:
 
 
-# Load dataset
-# Dataset is saved at the end of preprocess, see preprocess_eda notebook
-df = pd.read_csv("\\df_final.csv")
+# Charger le jeu des données
+df = pd.read_csv("C:\\Users\\zheng\\Documents\\Openclassrooms\\Data Scientist\\Project_04\\df_final.csv")
 
 
 # In[3]:
 
 
-# Change zipcode variable into string type
+# Changer les variables catégorielles de interger en string.
 df['CouncilDistrictCode'] = df['CouncilDistrictCode'].astype(str)
 df['ZipCode'] = df['ZipCode'].astype(str)
 
@@ -33,15 +36,15 @@ df['ZipCode'] = df['ZipCode'].astype(str)
 # In[4]:
 
 
-# Define X and y
+# Définir le X et le y
 X = df[[
     'PrimaryPropertyType', 'ZipCode', 'Neighborhood', 'CouncilDistrictCode',
-    'Latitude', 'Longitude', 'NumberofBuildings', 'NumberofFloors',
-    'PropertyGFAParking', 'LargestPropertyUseType',  'ENERGYSTARScore', 'BuildingAge',
-    'parking_area_prcnt', 'PropertyGFATotal_log', 'PropertyGFABuilding(s)_log', 'LargestPropertyUseTypeGFA_log'
-]].copy()
+       'Latitude', 'Longitude', 'NumberofBuildings', 'NumberofFloors',
+       'PropertyGFAParking', 'LargestPropertyUseType',  'ENERGYSTARScore', 'BuildingAge',
+       'parking_area_prcnt', 'PropertyGFATotal_log', 'PropertyGFABuilding(s)_log', 'LargestPropertyUseTypeGFA_log'
+       ]].copy()
 
-y = df['SiteEnergyUse(kBtu)_log']
+y = df['TotalGHGEmissions_log']
 
 
 # ## Preprocessing
@@ -68,7 +71,7 @@ scaler = StandardScaler()
 # In[6]:
 
 
-# Partitionnement le dataset pour entrainment et validation
+# Partitionnement le dataset (taille du test 30 %)
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
@@ -98,11 +101,11 @@ params_net = {}
 params_net["elasticnet__alpha"] = np.logspace(-5, 5, 5)
 
 params_knn = {}
-params_knn["kneighborsregressor__n_neighbors"] = [3, 10, 15]
+params_knn["kneighborsregressor__n_neighbors"] = [3, 10, 30]
 
 params_tree = {}
-params_tree["decisiontreeregressor__min_samples_leaf"] = [10, 20, 30]
-params_tree["decisiontreeregressor__max_depth"] = [10, 15, 30]
+params_tree["decisiontreeregressor__min_samples_leaf"] = [10, 30, 50]
+params_tree["decisiontreeregressor__max_depth"] = [10, 30, 50]
 
 params = [params_ridge, params_net, params_knn, params_tree]
 
@@ -112,8 +115,8 @@ params = [params_ridge, params_net, params_knn, params_tree]
 
 # Trouver les meilleurs paramètres avec GridSearchCV et pipeline
 models = [
-    Ridge(random_state=42),
-    ElasticNet(random_state=42, tol=0.1),
+    Ridge(random_state=42, tol=0.1),
+    ElasticNet(random_state=42, tol=1),
     KNeighborsRegressor(),
     DecisionTreeRegressor(random_state=42)
 ]
@@ -137,12 +140,14 @@ best_params
 
 
 # Branchez les meilleurs paramètres.
-names = ['ridge_regression', 'elastic_net_regression', 'knn_regression', 'decision_tree_regression']
+names = ['ridge_regression', 'elastic_net_regression',
+         'knn_regression', 'decision_tree_regression']
 
 models_best_params = [
-    Ridge(random_state=42, alpha=best_params[0]['ridge__alpha']),
+    Ridge(random_state=42, tol=0.1,
+          alpha=best_params[0]['ridge__alpha']),
 
-    ElasticNet(random_state=42, tol=1,
+    ElasticNet(random_state=42, tol=0.1,
                alpha=best_params[1]['elasticnet__alpha']),
 
     KNeighborsRegressor(
@@ -158,7 +163,7 @@ models_best_params = [
 
 
 # Créer un dataset pour plot les prédictions
-result_viz = pd.DataFrame(np.exp(y_test))
+result_viz = pd.DataFrame(y_test)
 result_viz.columns=['target']
 
 
@@ -182,7 +187,6 @@ for model, name in zip(models_best_params, names):
     mae_test = np.abs(cross_val_score(pipe, X_test, y_test,
                       cv=5, scoring="neg_mean_absolute_error").mean())
 
-
     test_score_r2.append(score_test)
     train_score_r2.append(score_train)
     train_mae.append(mae_train)
@@ -190,39 +194,37 @@ for model, name in zip(models_best_params, names):
 
     pipe.fit(X_train, y_train)
     predict = pipe.predict(X_test)
-    
-    # Nécessité d'inverser la fonction de log de la cible pour interpréter les valeurs des résultats
-    result_viz[name] = np.exp(predict) 
+    result_viz[name] = predict
 
 
 # In[14]:
 
 
-results = {'model': names}
-results['train_score_r2'] = train_score_r2
-results['test_score_r2'] = test_score_r2
-results['train_mean_absolute_error'] = train_mae
-results['test_mean_absolute_error'] = test_mae
+results = {'model':names}
+results['train_score_r2']=train_score_r2
+results['test_score_r2']=test_score_r2
+results['train_mean_absolute_error']=train_mae
+results['test_mean_absolute_error']=test_mae
 
 
 # In[15]:
 
 
 # métriques de résultats dans un tableau
+pd.set_option('display.float_format', '{:.2f}'.format)
 model_scores = pd.DataFrame(results)
 model_scores = round(model_scores,2)
-pd.options.display.float_format = '{:,}'.format
 model_scores.sort_values(by='test_score_r2',ascending=False)
 
 
-# Sur la base des mesures ci-dessus, le regression ridge donne le meilleur score de détermination (r²) ainsi que la plus petite mean absolute error. C'est le meilleur modèle des quatre.
+# Sur la base des mesures ci-dessus, le regression elastic net donne le meilleur score de détermination ainsi que la plus petite mean absolute error. C'est le meilleur modèle des quatre.
 
 # In[16]:
 
 
 # Un tableau avec les valeurs prédites sur le test set
 result_viz = result_viz.sort_values(by="target")
-result_viz.reset_index(drop=False, inplace=True)
+result_viz.reset_index(drop=True, inplace=True)
 result_viz.head()
 
 
@@ -250,8 +252,8 @@ for i, ax in enumerate(axes.flatten()):
     ax.set_yscale("log")
 
 plt.tight_layout(rect=[0, 0, 1, 0.97])
-plt.suptitle("Comparison between target and model predictions (consumption)")
-plt.savefig('scatter_plot_results_compare_consumption',bbox_inches='tight',dpi=300)
+plt.suptitle("Comparison between target and model predictions (emission)")
+plt.savefig('scatter_plot_results_compare_emissionn',bbox_inches='tight',dpi=300)
 plt.show()
 
 
@@ -274,8 +276,8 @@ for i, ax in enumerate(axes.flatten()):
 
 plt.tight_layout(rect=[0, 0, 1, 0.97])
 plt.suptitle(
-    "Distribution of predicted and real values (consumption) on test set")
-plt.savefig('kde_plot_results_compare_consumption',bbox_inches='tight',dpi=300)
+    "Distribution of predicted and real values (emission) on test set")
+plt.savefig('kde_plot_results_compare_emission',bbox_inches='tight',dpi=300)
 plt.show()
 
 
@@ -290,76 +292,111 @@ plt.show()
 import shap
 
 
-# In[20]:
+# In[33]:
 
 
-X_one_hot_encoded = pd.DataFrame(col_transform.fit_transform(X),columns=col_transform.get_feature_names_out())
+X_one_hot_encoded = pd.DataFrame(col_transform.fit_transform(
+    X), columns=col_transform.get_feature_names_out())
 
 
-# In[21]:
+# In[34]:
 
 
-X_ohe_scaled = pd.DataFrame(scaler.fit_transform(X_one_hot_encoded),columns=X_one_hot_encoded.columns)
+X_ohe_scaled = pd.DataFrame(scaler.fit_transform(
+    X_one_hot_encoded), columns=X_one_hot_encoded.columns)
 
 
-# In[22]:
+# In[35]:
 
 
-alpha_ridge = best_params[0]['ridge__alpha']
+alpha_net = best_params[1]['elasticnet__alpha']
 
-ridge = Ridge(alpha=alpha_ridge, random_state=42).fit(X_ohe_scaled, y)
-
-
-# In[23]:
+elastic_net = ElasticNet(alpha=alpha_net, random_state=42,tol=0.1).fit(X_ohe_scaled, y)
 
 
-explainer_ridge = shap.Explainer(ridge.predict, X_ohe_scaled)
+# In[36]:
 
 
-# In[24]:
+explainer_net = shap.Explainer(elastic_net.predict, X_ohe_scaled)
 
 
-shap_values_ridge = explainer_ridge(X_ohe_scaled)
+# In[37]:
 
 
-# In[25]:
+shap_values_net = explainer_net(X_ohe_scaled)
 
 
-fig=shap.plots.beeswarm(shap_values_ridge,max_display=10,show=False)
-plt.title('Model:ridge regression, target:SiteEnergyUse(kBtu)')
-plt.savefig('shap_plot_ridge_beeswarm_consumption',dpi=300,bbox_inches='tight')
+# In[46]:
+
+
+fig=shap.plots.beeswarm(shap_values_net,max_display=10,show=False)
+plt.title('Model:ElasticNet regression, target:TotalGHGEmissions_log')
+plt.savefig('shap_plot_net_beeswarm_emission',dpi=300,bbox_inches='tight')
 plt.show()
 
 
-# In[26]:
+# In[47]:
 
 
-fig = shap.plots.bar(shap_values_ridge, max_display=10, show=False)
-plt.title('Model:ridge regression, target:SiteEnergyUse(kBtu)')
-plt.savefig('shap_plot_ridge_bar_consumption',dpi=300,bbox_inches='tight')
+fig = shap.plots.bar(shap_values_net, max_display=10, show=False)
+plt.title('Model:ridge regression, target:TotalGHGEmissions')
+plt.savefig('shap_plot_net_bar_emission',dpi=300,bbox_inches='tight')
 plt.show()
 
 
 # Résultat au niveau de l'échantillon
 
-# In[27]:
+# In[40]:
 
 
-df.iloc[2,:]
+df.iloc[1,:]
 
 
-# In[28]:
+# In[48]:
 
 
-shap.plots.waterfall(shap_values_ridge[2], show=False)
-plt.title(f"Consumption prediction of {df.loc[2, 'PropertyName']}")
-plt.savefig('shap_plot_bar_indiv_consumption', bbox_inches='tight',dpi=300)
+shap.plots.waterfall(shap_values_net[2], show=False)
+plt.title(f"Emission prediction of {df.loc[2, 'PropertyName']}")
+plt.savefig('shap_plot_bar_indiv_emission', bbox_inches='tight',dpi=300)
 plt.show()
 
 
-# In[29]:
+# In[42]:
 
 
 shap.initjs()
-shap.plots.force(shap_values_ridge[2], matplotlib=True)
+fig = shap.plots.force(shap_values_net[1], matplotlib=True)
 
+
+# ## ENERGYStarScore
+
+# In[43]:
+
+
+X_with_var = X.copy()
+X_without_var = X.drop(columns='ENERGYSTARScore')
+y = df['TotalGHGEmissions_log']
+
+
+# In[44]:
+
+
+pipe = make_pipeline(col_transform, scaler,ElasticNet(alpha=alpha_net, random_state=42,tol=0.1))
+score_r2_with_var = cross_val_score(pipe, X_with_var, y, cv=5, scoring="r2").mean()
+score_r2_without_var = cross_val_score(pipe, X_without_var, y, cv=5, scoring="r2").mean()   
+
+
+# In[45]:
+
+
+print('Score R² ridge regression avec ENERGYSTARScore:',
+      np.around(score_r2_with_var, 4))
+print('Score R² ridge regression sans ENERGYSTARScore:',
+      np.around(score_r2_without_var, 4))
+print('Difference between the results:', np.around(
+    np.diff([score_r2_with_var, score_r2_without_var]), 4))
+
+
+# Le résultat ci-dessus montre qu'ENERGY Star Score améliore les performances du modèle de 4,42 %.
+
+# Fin de projet. Merci.
